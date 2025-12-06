@@ -20,23 +20,38 @@ export default function ProfilePage() {
   // State form
   const [fullName, setFullName] = useState('')
   const [phone, setPhone] = useState('')
+  const [email, setEmail] = useState('')
 
   // Load thông tin profile khi vào trang
   useEffect(() => {
     const getProfile = async () => {
       if (!user) return
       
-      const { data } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single()
-      
-      if (data) {
-        setFullName(data.full_name || '')
-        setPhone(data.phone || '') // Cần đảm bảo DB có cột phone
+      try {
+        const { data, error } = await supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single()
+        
+        if (error && error.code !== 'PGRST116') { // PGRST116 là lỗi không tìm thấy data (chưa có profile)
+           console.error('Error fetching profile:', error)
+        }
+
+        if (data) {
+          setFullName(data.full_name || '')
+          setPhone(data.phone || '')
+          // Ưu tiên hiển thị email từ Auth User, nếu không có thì lấy từ profile
+          setEmail(user.email || data.email || '') 
+        } else {
+           // Nếu chưa có profile trong bảng user_profiles, lấy tạm từ Auth User
+           setEmail(user.email || '')
+        }
+      } catch (error) {
+        console.error(error)
+      } finally {
+        setFetching(false)
       }
-      setFetching(false)
     }
     getProfile()
   }, [user, supabase])
@@ -50,7 +65,7 @@ export default function ProfilePage() {
         .from('user_profiles')
         .upsert({
           id: user.id,
-          email: user.email,
+          email: user.email, // Luôn đồng bộ email từ Auth sang
           full_name: fullName,
           phone: phone,
           updated_at: new Date().toISOString()
@@ -58,6 +73,7 @@ export default function ProfilePage() {
 
       if (error) throw error
       toast.success('Cập nhật hồ sơ thành công!')
+      router.refresh() // Refresh lại data server component nếu có
     } catch (error: any) {
       console.error(error)
       toast.error('Lỗi: ' + error.message)
@@ -86,7 +102,8 @@ export default function ProfilePage() {
         <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email">Email đăng nhập</Label>
-            <Input id="email" value={user.email || ''} disabled className="bg-gray-100" />
+            {/* Input này bị disable vì email quản lý bởi Supabase Auth */}
+            <Input id="email" value={email} disabled className="bg-gray-100 cursor-not-allowed" />
           </div>
           
           <div className="space-y-2">
