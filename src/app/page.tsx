@@ -1,8 +1,9 @@
-import { supabase } from '@/lib/supabase/client'
+import { createClient } from '@/lib/supabase/server'
 import { ProductCard } from '@/components/products/ProductCard'
 
-// Server Component (Không cần 'use client')
 export default async function HomePage() {
+  const supabase = await createClient()
+  
   const { data: products } = await supabase
     .from('products')
     .select('*')

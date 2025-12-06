@@ -1,10 +1,11 @@
-import { supabase } from '@/lib/supabase/client'
+import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Image from 'next/image'
-import { AddToCartButton } from './add-to-cart-button' // Tách Client Component
+import { AddToCartButton } from './add-to-cart-button'
 
 export default async function ProductDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
+  const supabase = await createClient()
   
   const { data: product } = await supabase
     .from('products')

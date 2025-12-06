@@ -14,7 +14,6 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true)
   const router = useRouter()
 
-  // State cho form thêm sản phẩm
   const [newProduct, setNewProduct] = useState({
     name: '',
     price: '',
@@ -34,8 +33,15 @@ export default function AdminPage() {
       return
     }
     
-    // Ở đây bạn nên thêm logic check role 'admin' từ bảng user_profiles
-    // Để đơn giản cho demo, ta bỏ qua bước check role và load dữ liệu luôn
+    // Logic kiểm tra quyền admin đơn giản:
+    // Bạn có thể thay 'admin@example.com' bằng email của bạn để test
+    // Hoặc bỏ qua đoạn if này nếu muốn ai đăng nhập cũng vào được (dev mode)
+    // if (session.user.email !== 'admin@example.com') {
+    //   toast.error('Bạn không có quyền truy cập!')
+    //   router.push('/')
+    //   return
+    // }
+    
     fetchOrders()
   }
 
@@ -57,7 +63,7 @@ export default function AdminPage() {
         description: newProduct.description,
         price: parseFloat(newProduct.price),
         stock_quantity: parseInt(newProduct.stock_quantity),
-        images: [newProduct.image_url], // Lưu thành mảng
+        images: [newProduct.image_url],
         is_active: true
       })
 
@@ -79,7 +85,7 @@ export default function AdminPage() {
     if (error) toast.error('Cập nhật thất bại')
     else {
       toast.success('Đã cập nhật trạng thái')
-      fetchOrders() // Reload lại danh sách
+      fetchOrders()
     }
   }
 
@@ -95,7 +101,6 @@ export default function AdminPage() {
           <TabsTrigger value="products">Thêm Sản phẩm</TabsTrigger>
         </TabsList>
 
-        {/* TAB QUẢN LÝ ĐƠN HÀNG */}
         <TabsContent value="orders">
           <div className="space-y-4">
             {orders.map((order) => (
@@ -134,7 +139,6 @@ export default function AdminPage() {
           </div>
         </TabsContent>
 
-        {/* TAB THÊM SẢN PHẨM */}
         <TabsContent value="products">
           <Card className="max-w-xl">
             <CardHeader><CardTitle>Thêm sản phẩm mới</CardTitle></CardHeader>

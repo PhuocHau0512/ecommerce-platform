@@ -1,22 +1,19 @@
-import { supabase } from '@/lib/supabase/client' // Lưu ý: Trong Server Component nên dùng createServerComponentClient, nhưng để đơn giản ta dùng client logic hoặc fetch server-side cơ bản
+import { createClient } from '@/lib/supabase/server'
 import { cookies } from 'next/headers'
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
-import { format } from 'date-fns'
 import { Badge } from '@/components/ui/badge'
 
 export default async function OrdersPage() {
-  const cookieStore = cookies()
-  const supabaseServer = createServerComponentClient({ cookies: () => cookieStore })
+  const supabase = await createClient()
 
   // Lấy user hiện tại
-  const { data: { session } } = await supabaseServer.auth.getSession()
+  const { data: { session } } = await supabase.auth.getSession()
 
   if (!session) {
     return <div className="container mx-auto px-4 py-8">Vui lòng đăng nhập để xem đơn hàng.</div>
   }
 
-  // Lấy danh sách đơn hàng + items
-  const { data: orders } = await supabaseServer
+  // Lấy danh sách đơn hàng
+  const { data: orders } = await supabase
     .from('orders')
     .select(`
       *,
