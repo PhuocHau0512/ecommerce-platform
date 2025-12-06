@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/supabase/client' // Import hàm tạo
 import type { User } from '@supabase/supabase-js'
 import { useRouter } from 'next/navigation'
 
@@ -17,6 +17,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
+  
+  // THÊM DÒNG NÀY: Khởi tạo client supabase
+  const supabase = createClient() 
 
   useEffect(() => {
     // 1. Lấy session hiện tại
@@ -30,12 +33,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // 2. Lắng nghe thay đổi auth
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null)
-      if (_event === 'SIGNED_OUT') router.push('/login')
-      router.refresh()
+      if (_event === 'SIGNED_OUT') {
+        router.push('/login')
+        router.refresh()
+      }
     })
 
     return () => subscription.unsubscribe()
-  }, [router])
+  }, [router, supabase]) // Thêm supabase vào dependency
 
   const signOut = async () => {
     await supabase.auth.signOut()
