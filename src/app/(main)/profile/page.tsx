@@ -1,14 +1,70 @@
 'use client'
 
-import { useState } from 'react'
-import { useAuth } from '@/components/auth/AuthProvider'
+import { useEffect, useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { useAuth } from '@/components/auth/AuthProvider'
+import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 
 export default function ProfilePage() {
   const { user, signOut } = useAuth()
   const router = useRouter()
+  const supabase = createClient()
+  
   const [loading, setLoading] = useState(false)
+  const [fetching, setFetching] = useState(true)
+  
+  // State form
+  const [fullName, setFullName] = useState('')
+  const [phone, setPhone] = useState('')
+
+  // Load thông tin profile khi vào trang
+  useEffect(() => {
+    const getProfile = async () => {
+      if (!user) return
+      
+      const { data } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single()
+      
+      if (data) {
+        setFullName(data.full_name || '')
+        setPhone(data.phone || '') // Cần đảm bảo DB có cột phone
+      }
+      setFetching(false)
+    }
+    getProfile()
+  }, [user, supabase])
+
+  const handleUpdate = async () => {
+    if (!user) return
+    setLoading(true)
+
+    try {
+      const { error } = await supabase
+        .from('user_profiles')
+        .upsert({
+          id: user.id,
+          email: user.email,
+          full_name: fullName,
+          phone: phone,
+          updated_at: new Date().toISOString()
+        })
+
+      if (error) throw error
+      toast.success('Cập nhật hồ sơ thành công!')
+    } catch (error: any) {
+      console.error(error)
+      toast.error('Lỗi: ' + error.message)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleSignOut = async () => {
     setLoading(true)
@@ -16,30 +72,57 @@ export default function ProfilePage() {
     router.push('/login')
   }
 
-  if (!user) return <div className="p-8 text-center">Đang tải thông tin...</div>
+  if (!user) return <div className="p-8 text-center">Đang kiểm tra đăng nhập...</div>
+  if (fetching) return <div className="p-8 text-center">Đang tải thông tin...</div>
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-xl">
-      <div className="bg-white p-8 rounded-lg shadow border">
-        <h1 className="text-2xl font-bold mb-6">Thông tin tài khoản</h1>
-        <div className="space-y-4 mb-8">
-          <div>
-            <label className="text-sm text-gray-500">Email</label>
-            <div className="font-medium">{user.email}</div>
-          </div>
-          <div>
-            <label className="text-sm text-gray-500">Ngày tham gia</label>
-            <div className="font-medium">{new Date(user.created_at || '').toLocaleDateString()}</div>
-          </div>
+      <div className="bg-white p-8 rounded-lg shadow-sm border space-y-8">
+        <div>
+          <h1 className="text-2xl font-bold">Hồ sơ cá nhân</h1>
+          <p className="text-gray-500 text-sm">Quản lý thông tin tài khoản của bạn</p>
         </div>
         
-        <div className="flex flex-col gap-3">
-          <Button variant="outline" onClick={() => router.push('/orders')}>
-            Xem lịch sử đơn hàng
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="email">Email đăng nhập</Label>
+            <Input id="email" value={user.email || ''} disabled className="bg-gray-100" />
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="name">Họ và tên</Label>
+            <Input 
+              id="name" 
+              value={fullName} 
+              onChange={(e) => setFullName(e.target.value)} 
+              placeholder="Nhập họ tên của bạn"
+            />
+          </div>
+
+           <div className="space-y-2">
+            <Label htmlFor="phone">Số điện thoại</Label>
+            <Input 
+              id="phone" 
+              value={phone} 
+              onChange={(e) => setPhone(e.target.value)} 
+              placeholder="Thêm số điện thoại liên hệ"
+            />
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-3 pt-4 border-t">
+          <Button onClick={handleUpdate} disabled={loading} className="w-full">
+            {loading ? 'Đang lưu...' : 'Lưu thay đổi'}
           </Button>
-          <Button variant="destructive" onClick={handleSignOut} disabled={loading}>
-            {loading ? 'Đang đăng xuất...' : 'Đăng xuất'}
-          </Button>
+          
+          <div className="grid grid-cols-2 gap-3 mt-2">
+            <Button variant="outline" onClick={() => router.push('/orders')}>
+              Lịch sử đơn hàng
+            </Button>
+            <Button variant="destructive" onClick={handleSignOut} disabled={loading}>
+              Đăng xuất
+            </Button>
+          </div>
         </div>
       </div>
     </div>

@@ -4,14 +4,17 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 
 export default function AdminPage() {
   const [orders, setOrders] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [uploading, setUploading] = useState(false)
   const router = useRouter()
 
   const [newProduct, setNewProduct] = useState({
@@ -21,6 +24,9 @@ export default function AdminPage() {
     stock_quantity: '',
     image_url: ''
   })
+  
+  // State lưu file được chọn
+  const [file, setFile] = useState<File | null>(null)
 
   useEffect(() => {
     checkAdminAndFetchData()
@@ -32,16 +38,6 @@ export default function AdminPage() {
       router.push('/login')
       return
     }
-    
-    // Logic kiểm tra quyền admin đơn giản:
-    // Bạn có thể thay 'admin@example.com' bằng email của bạn để test
-    // Hoặc bỏ qua đoạn if này nếu muốn ai đăng nhập cũng vào được (dev mode)
-    // if (session.user.email !== 'admin@example.com') {
-    //   toast.error('Bạn không có quyền truy cập!')
-    //   router.push('/')
-    //   return
-    // }
-    
     fetchOrders()
   }
 
@@ -55,24 +51,55 @@ export default function AdminPage() {
     setLoading(false)
   }
 
+  // Hàm xử lý upload ảnh lên Supabase Storage
+  const handleImageUpload = async (file: File) => {
+    const fileExt = file.name.split('.').pop()
+    const fileName = `${Date.now()}-${Math.random()}.${fileExt}`
+    const filePath = `${fileName}`
+
+    const { error: uploadError } = await supabase.storage
+      .from('products') // Tên bucket (phải tạo trên Supabase Dashboard)
+      .upload(filePath, file)
+
+    if (uploadError) {
+      throw uploadError
+    }
+
+    const { data } = supabase.storage.from('products').getPublicUrl(filePath)
+    return data.publicUrl
+  }
+
   const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault()
+    setUploading(true)
+
     try {
+      let finalImageUrl = newProduct.image_url
+
+      // Nếu có file, thực hiện upload trước
+      if (file) {
+        finalImageUrl = await handleImageUpload(file)
+      }
+
       const { error } = await supabase.from('products').insert({
         name: newProduct.name,
         description: newProduct.description,
         price: parseFloat(newProduct.price),
         stock_quantity: parseInt(newProduct.stock_quantity),
-        images: [newProduct.image_url],
+        images: [finalImageUrl],
         is_active: true
       })
 
       if (error) throw error
 
       toast.success('Thêm sản phẩm thành công')
+      // Reset form
       setNewProduct({ name: '', price: '', description: '', stock_quantity: '', image_url: '' })
+      setFile(null)
     } catch (error: any) {
       toast.error('Lỗi: ' + error.message)
+    } finally {
+      setUploading(false)
     }
   }
 
@@ -112,7 +139,7 @@ export default function AdminPage() {
                   </div>
                   <div className="flex gap-2">
                     <select 
-                      className="border rounded p-1 text-sm"
+                      className="border rounded p-1 text-sm bg-white"
                       value={order.status}
                       onChange={(e) => updateOrderStatus(order.id, e.target.value)}
                     >
@@ -145,28 +172,52 @@ export default function AdminPage() {
             <CardContent>
               <form onSubmit={handleAddProduct} className="space-y-4">
                 <div className="space-y-2">
-                  <label>Tên sản phẩm</label>
+                  <Label>Tên sản phẩm</Label>
                   <Input value={newProduct.name} onChange={e => setNewProduct({...newProduct, name: e.target.value})} required />
                 </div>
                 <div className="flex gap-4">
                   <div className="space-y-2 flex-1">
-                    <label>Giá ($)</label>
+                    <Label>Giá ($)</Label>
                     <Input type="number" value={newProduct.price} onChange={e => setNewProduct({...newProduct, price: e.target.value})} required />
                   </div>
                   <div className="space-y-2 flex-1">
-                    <label>Tồn kho</label>
+                    <Label>Tồn kho</Label>
                     <Input type="number" value={newProduct.stock_quantity} onChange={e => setNewProduct({...newProduct, stock_quantity: e.target.value})} required />
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <label>Link ảnh (URL)</label>
-                  <Input value={newProduct.image_url} onChange={e => setNewProduct({...newProduct, image_url: e.target.value})} placeholder="https://..." required />
+                
+                {/* Phần Upload Ảnh */}
+                <div className="space-y-2 border p-4 rounded-lg bg-gray-50">
+                  <Label>Hình ảnh sản phẩm</Label>
+                  <Input 
+                    type="file" 
+                    accept="image/*"
+                    onChange={(e) => setFile(e.target.files?.[0] || null)} 
+                    className="bg-white cursor-pointer"
+                  />
+                  {file && <p className="text-sm text-green-600">Đã chọn: {file.name}</p>}
+                  
+                  <div className="relative flex items-center gap-2 my-2">
+                    <div className="h-px bg-gray-300 flex-1"></div>
+                    <span className="text-xs text-gray-500">HOẶC DÙNG LINK</span>
+                    <div className="h-px bg-gray-300 flex-1"></div>
+                  </div>
+
+                  <Input 
+                    value={newProduct.image_url} 
+                    onChange={e => setNewProduct({...newProduct, image_url: e.target.value})} 
+                    placeholder="https://example.com/image.jpg" 
+                  />
                 </div>
+
                 <div className="space-y-2">
-                  <label>Mô tả ngắn</label>
+                  <Label>Mô tả ngắn</Label>
                   <Input value={newProduct.description} onChange={e => setNewProduct({...newProduct, description: e.target.value})} />
                 </div>
-                <Button type="submit">Lưu sản phẩm</Button>
+                
+                <Button type="submit" className="w-full" disabled={uploading}>
+                  {uploading ? 'Đang xử lý...' : 'Lưu sản phẩm'}
+                </Button>
               </form>
             </CardContent>
           </Card>
