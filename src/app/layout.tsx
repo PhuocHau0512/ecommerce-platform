@@ -4,6 +4,7 @@ import './globals.css'
 import { Header } from '@/components/layout/Header'
 import { AuthProvider } from '@/components/auth/AuthProvider'
 import { Toaster } from 'sonner'
+import { AIChatBot } from '@/components/chat/AIChatBot'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -14,13 +15,13 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    // THÊM suppressHydrationWarning VÀO ĐÂY
-    <html lang="en" suppressHydrationWarning> 
+    <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
         <AuthProvider>
-          <div className="min-h-screen flex flex-col">
+          <div className="min-h-screen flex flex-col relative"> {/* Thêm relative */}
             <Header />
             <main className="flex-1 bg-gray-50">{children}</main>
+            <AIChatBot /> {/* Đặt Chatbot ở đây để hiện mọi nơi */}
           </div>
           <Toaster richColors position="top-center" />
         </AuthProvider>
